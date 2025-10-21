@@ -1,0 +1,10 @@
+matplotlib
+numpy
+Pillow
+
+tensorflow==2.20.0
+
+# Optionnel (macOS Apple Silicon) pour accélération GPU :
+tensorflow-macos
+tensorflow-metal
+

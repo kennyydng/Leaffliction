@@ -25,7 +25,7 @@ warnings.filterwarnings("ignore") # to clean up output cells
 
 # Load training and validation sets
 ds_train_ = image_dataset_from_directory(
-    '../input/car-or-truck/train',
+    'input/train',
     labels='inferred',
     label_mode='binary',
     image_size=[128, 128],
@@ -34,7 +34,7 @@ ds_train_ = image_dataset_from_directory(
     shuffle=True,
 )
 ds_valid_ = image_dataset_from_directory(
-    '../input/car-or-truck/valid',
+    'input/valid',
     labels='inferred',
     label_mode='binary',
     image_size=[128, 128],

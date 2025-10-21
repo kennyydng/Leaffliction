@@ -1,0 +1,5 @@
+input/
+*.zip
+*.tar
+.venv/
+__pycache__/
