@@ -3,3 +3,5 @@ input/
 *.tar
 .venv/
 __pycache__/
+.DS_Store
+output/
