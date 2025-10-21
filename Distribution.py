@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import os
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'  # Supprimer les messages de débogage TF
 import sys
 import warnings
 import matplotlib.pyplot as plt
@@ -20,8 +21,9 @@ VALID_EXTENSIONS = {'.jpg', '.jpeg', '.png', '.gif', '.bmp'}
 
 def get_dataset_info(directory):
     """
-    Utilise TensorFlow pour charger et analyser le dataset.
-    Retourne un dictionnaire avec les statistiques par classe.
+    Get the number of images per category in the given directory.
+    Assumes each subdirectory represents a category.
+    Returns a dictionary with category names as keys and image counts as values.
     """
     try:
         dataset = tf.keras.preprocessing.image_dataset_from_directory(
@@ -62,9 +64,9 @@ def get_dataset_info(directory):
     
     return image_counts
 
-def create_visualizations(data, title):
+def create_charts(data, title):
     """
-    Crée les deux graphiques côte à côte dans une seule figure.
+    Create two side-by-side plots in a single figure.
     """
     # Créer une figure avec deux sous-plots côte à côte
     plt.figure(figsize=(20, 8))
@@ -85,17 +87,8 @@ def create_visualizations(data, title):
     # Amélioration du style du camembert
     plt.setp(autotexts, size=10, weight="bold")
     plt.setp(texts, size=12)
-    plt.title(f'Distribution des Images - {title}', pad=20)
+    plt.title(f'Distribution of Images - {title}', pad=20)
     plt.axis('equal')
-    
-    # Ajouter une légende pour le camembert
-    plt.legend(
-        wedges,
-        data.keys(),
-        title="Catégories",
-        loc="center left",
-        bbox_to_anchor=(1, 0, 0.5, 1)
-    )
     
     # Graphique en barres (à droite)
     plt.subplot(1, 2, 2)
@@ -105,9 +98,9 @@ def create_visualizations(data, title):
         color=colors
     )
     
-    plt.title(f'Nombre d\'Images par Catégorie - {title}')
+    plt.title(f'Number of images - {title}')
     plt.xlabel('Catégories', fontsize=12, labelpad=10)
-    plt.ylabel('Nombre d\'Images', fontsize=12, labelpad=10)
+    plt.ylabel('Images', fontsize=12, labelpad=10)
     
     # Rotation et ajustement des labels
     plt.xticks(rotation=45, ha='right')
@@ -141,36 +134,6 @@ def create_visualizations(data, title):
     plt.show(block=True)  # Attendre que l'utilisateur ferme la fenêtre
     plt.close()
 
-def create_bar_chart(data, title):
-    """
-    Crée un graphique en barres des données.
-    """
-    plt.figure(figsize=(12, 6))
-    
-    categories = list(data.keys())
-    values = list(data.values())
-    
-    bars = plt.bar(categories, values)
-    plt.title(f'Nombre d\'Images par Catégorie - {title}')
-    plt.xlabel('Catégories')
-    plt.ylabel('Nombre d\'Images')
-    
-    # Rotation des labels pour une meilleure lisibilité
-    plt.xticks(rotation=45, ha='right')
-    
-    # Ajouter les valeurs au-dessus des barres
-    for bar in bars:
-        height = bar.get_height()
-        plt.text(bar.get_x() + bar.get_width()/2., height,
-                f'{int(height)}', ha='center', va='bottom')
-    
-    # Ajuster la mise en page
-    plt.tight_layout()
-    
-    # Sauvegarder le graphique
-    plt.savefig(f'distribution_bar_{title.lower()}.png')
-    plt.close()
-
 
 
 def main():
@@ -180,13 +143,13 @@ def main():
     
     directory = sys.argv[1]
     if not os.path.isdir(directory):
-        print(f"Erreur: '{directory}' n'est pas un répertoire valide.")
+        print(f"Error: '{directory}' is not a valid directory.")
         sys.exit(1)
     
     # Obtenir le nom du répertoire principal
     dataset_name = os.path.basename(os.path.normpath(directory))
     
-    print(f"\nAnalyse du dataset '{dataset_name}'...")
+    print(f"\nAnalyse of dataset '{dataset_name}'...")
     
     # Obtenir les statistiques avec TensorFlow
     image_counts = get_dataset_info(directory)
@@ -196,20 +159,18 @@ def main():
         sys.exit(1)
     
     # Créer les visualisations
-    print("\nCréation des visualisations...")
-    create_visualizations(image_counts, dataset_name)
+    print("\nGenerating charts...")
+    create_charts(image_counts, dataset_name)
     
     # Afficher les statistiques
     total_images = sum(image_counts.values())
-    print(f"\nStatistiques pour {dataset_name}:")
-    print(f"Total des images: {total_images:,}")
-    print("\nDistribution par catégorie:")
+    print(f"\nStats for {dataset_name}:")
+    print(f"Total of images: {total_images:,}")
     for category, count in image_counts.items():
         percentage = (count / total_images) * 100
         print(f"{category}: {count:,} images ({percentage:.1f}%)")
         
-    print(f"\nGraphique sauvegardé dans le dossier 'output' sous:")
-    print(f"- distribution_combined_{dataset_name.lower()}.png")
+    print(f"\nSaved in ./output/distribution_combined_{dataset_name.lower()}.png")
 
 if __name__ == "__main__":
     main()
