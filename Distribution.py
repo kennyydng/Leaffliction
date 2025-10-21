@@ -1,7 +1,4 @@
 #!/usr/bin/env python3
-"""
-Distribution.py - Analyze and visualize image dataset distributions
-"""
 import os
 import sys
 import numpy as np
@@ -13,7 +10,6 @@ from pathlib import Path
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 
 # Matplotlib configuration
-plt.style.use('seaborn')  # Use a better style
 plt.rcParams.update({
     'figure.autolayout': True,
     'axes.labelweight': 'bold',
@@ -97,7 +93,7 @@ def create_charts(data: dict, title: str) -> None:
     # Amélioration du style du camembert
     plt.setp(autotexts, size=10, weight="bold")
     plt.setp(texts, size=12)
-    plt.title(f'Distribution of Images - {title}', pad=20)
+    plt.title(f'{title} class distribution', pad=20)
     plt.axis('equal')
 
     # Graphique en barres (à droite)
@@ -108,8 +104,7 @@ def create_charts(data: dict, title: str) -> None:
         color=colors
     )
 
-    plt.title(f'Number of images - {title}')
-    plt.xlabel('Catégories', fontsize=12, labelpad=10)
+    plt.xlabel('', fontsize=12, labelpad=10)
     plt.ylabel('Images', fontsize=12, labelpad=10)
 
     # Rotation et ajustement des labels
