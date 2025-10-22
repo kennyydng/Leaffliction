@@ -53,8 +53,8 @@ def validate_directory(directory: str) -> None:
     if not subdirs:
         raise ValueError(f"No class subdirectories found in '{directory}'")
 
-    # Check for images in subdirectories
-    valid_extensions = {".jpg", ".jpeg", ".png"}
+    # Check for images in subdirectories (case insensitive)
+    valid_extensions = {".jpg", ".jpeg", ".png", ".JPG", ".JPEG", ".PNG"}
     for subdir in subdirs:
         has_images = False
         for ext in valid_extensions:
