@@ -7,21 +7,62 @@ import matplotlib.pyplot as plt
 from pathlib import Path
 
 # Configure TensorFlow logging before import
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
+os.environ["TF_CPP_MIN_LOG_LEVEL"] = "2"
 
 # Matplotlib configuration
-plt.rcParams.update({
-    'figure.autolayout': True,
-    'axes.labelweight': 'bold',
-    'axes.labelsize': 'large',
-    'axes.titleweight': 'bold',
-    'axes.titlesize': 18,
-    'axes.titlepad': 10
-})
+plt.rcParams.update(
+    {
+        "figure.autolayout": True,
+        "axes.labelweight": "bold",
+        "axes.labelsize": "large",
+        "axes.titleweight": "bold",
+        "axes.titlesize": 18,
+        "axes.titlepad": 10,
+    }
+)
 plt.ion()  # Enable interactive mode
 
 # Constants
 IMAGE_SIZE = [128, 128]  # Standard size for all images
+
+
+def validate_directory(directory: str) -> None:
+    """
+    Validate directory structure and content.
+
+    Args:
+        directory (str): Path to check
+
+    Raises:
+        ValueError: If directory structure is invalid
+        PermissionError: If permissions are insufficient
+    """
+    path = Path(directory)
+
+    if not path.exists():
+        raise ValueError(f"Directory '{directory}' does not exist")
+
+    if not path.is_dir():
+        raise ValueError(f"'{directory}' is not a directory")
+
+    if not os.access(directory, os.R_OK):
+        raise PermissionError(f"No read permission for '{directory}'")
+
+    # Check for subdirectories (classes)
+    subdirs = [x for x in path.iterdir() if x.is_dir()]
+    if not subdirs:
+        raise ValueError(f"No class subdirectories found in '{directory}'")
+
+    # Check for images in subdirectories
+    valid_extensions = {".jpg", ".jpeg", ".png"}
+    for subdir in subdirs:
+        has_images = False
+        for ext in valid_extensions:
+            if list(subdir.glob(f"*{ext}")):
+                has_images = True
+                break
+        if not has_images:
+            raise ValueError(f"No valid images found in '{subdir}'")
 
 
 def get_dataset_info(directory: str) -> dict:
@@ -35,16 +76,23 @@ def get_dataset_info(directory: str) -> dict:
         dict: Category names as keys and image counts as values
 
     Raises:
-        SystemExit: If directory cannot be processed
+        ValueError: If directory structure or content is invalid
+        RuntimeError: If dataset processing fails
     """
     try:
+        # Validate directory structure first
+        validate_directory(directory)
+
         dataset = tf.keras.preprocessing.image_dataset_from_directory(
             directory,
-            labels='inferred',
-            label_mode='categorical',
+            labels="inferred",
+            label_mode="categorical",
             image_size=IMAGE_SIZE,
             shuffle=False,
-            batch_size=None
+            batch_size=None,
+            validation_split=None,
+            seed=None,
+            color_mode="rgb",
         )
 
         class_names = dataset.class_names
@@ -57,13 +105,14 @@ def get_dataset_info(directory: str) -> dict:
             image_counts[class_name] = image_counts.get(class_name, 0) + 1
 
         if not image_counts:
-            raise ValueError("No images found in the directory")
+            raise ValueError("No valid images found in the dataset")
 
         return image_counts
 
+    except tf.errors.OpError as e:
+        raise RuntimeError(f"TensorFlow error: {str(e)}")
     except Exception as e:
-        print(f"Error loading dataset: {str(e)}")
-        sys.exit(1)
+        raise RuntimeError(f"Failed to process dataset: {str(e)}")
 
 
 def create_charts(data: dict, title: str) -> None:
@@ -85,59 +134,55 @@ def create_charts(data: dict, title: str) -> None:
     wedges, texts, autotexts = plt.pie(
         data.values(),
         labels=data.keys(),
-        autopct='%1.1f%%',
+        autopct="%1.1f%%",
         startangle=90,
-        colors=colors
+        colors=colors,
     )
 
     # Amélioration du style du camembert
     plt.setp(autotexts, size=10, weight="bold")
     plt.setp(texts, size=12)
-    plt.title(f'{title} class distribution', pad=20)
-    plt.axis('equal')
+    plt.title(f"{title} class distribution", pad=20)
+    plt.axis("equal")
 
     # Graphique en barres (à droite)
     plt.subplot(1, 2, 2)
-    bars = plt.bar(
-        list(data.keys()),
-        list(data.values()),
-        color=colors
-    )
+    bars = plt.bar(list(data.keys()), list(data.values()), color=colors)
 
-    plt.xlabel('', fontsize=12, labelpad=10)
-    plt.ylabel('Images', fontsize=12, labelpad=10)
+    plt.xlabel("", fontsize=12, labelpad=10)
+    plt.ylabel("Images", fontsize=12, labelpad=10)
 
     # Rotation et ajustement des labels
-    plt.xticks(rotation=45, ha='right')
+    plt.xticks(rotation=45, ha="right")
 
     # Ajouter les valeurs sur les barres
     for bar in bars:
         height = bar.get_height()
         plt.text(
-            bar.get_x() + bar.get_width()/2.,
+            bar.get_x() + bar.get_width() / 2.0,
             height,
-            f'{int(height):,}',
-            ha='center',
-            va='bottom',
+            f"{int(height):,}",
+            ha="center",
+            va="bottom",
             fontsize=10,
-            fontweight='bold'
+            fontweight="bold",
         )
 
     # Grille en arrière-plan pour le graphique en barres
-    plt.grid(True, axis='y', linestyle='--', alpha=0.7)
+    plt.grid(True, axis="y", linestyle="--", alpha=0.7)
 
     # Ajuster la mise en page
     plt.tight_layout()
 
     # Créer le dossier output s'il n'existe pas
     dir_path = os.path.dirname(os.path.abspath(__file__))
-    output_dir = os.path.join(dir_path, 'output')
+    output_dir = os.path.join(dir_path, "output")
     os.makedirs(output_dir, exist_ok=True)
 
     # Sauvegarder et afficher la figure complète
-    filename = f'distribution_combined_{title.lower()}.png'
+    filename = f"distribution_combined_{title.lower()}.png"
     output_path = os.path.join(output_dir, filename)
-    plt.savefig(output_path, bbox_inches='tight', dpi=300)
+    plt.savefig(output_path, bbox_inches="tight", dpi=300)
     plt.show(block=True)  # Attendre que l'utilisateur ferme la fenêtre
     plt.close()
 
@@ -148,16 +193,16 @@ def main() -> None:
     """
     if len(sys.argv) != 2:
         print("Usage: ./Distribution.py <directory>")
-        sys.exit(1)
-
-    directory = sys.argv[1]
-    if not Path(directory).is_dir():
-        print(f"Error: '{directory}' is not a valid directory.")
+        print("Example: ./Distribution.py ./input/Apple")
         sys.exit(1)
 
     try:
-        # Get dataset name from directory
-        dataset_name = Path(directory).name
+        directory = sys.argv[1]
+        path = Path(directory)
+        if not path.exists():
+            raise ValueError(f"Directory '{directory}' does not exist")
+
+        dataset_name = path.name
         print(f"\nAnalyzing dataset '{dataset_name}'...")
 
         # Get statistics using TensorFlow
@@ -165,19 +210,41 @@ def main() -> None:
 
         # Generate visualizations
         print("\nGenerating charts...")
-        create_charts(image_counts, dataset_name)
+        try:
+            create_charts(image_counts, dataset_name)
+        except Exception as e:
+            raise RuntimeError(f"Failed to create charts: {str(e)}")
 
         # Display statistics
         total_images = sum(image_counts.values())
+        if total_images == 0:
+            raise ValueError("No images found in the dataset")
+
         print(f"\nStatistics for {dataset_name}:")
         print(f"Total images: {total_images:,}")
 
+        # Calculate and display class distribution
         for category, count in sorted(image_counts.items()):
             percentage = (count / total_images) * 100
             print(f"{category}: {count:,} images ({percentage:.1f}%)")
 
+        # Check for class imbalance
+        mini = min(image_counts.values())
+        maxi = max(image_counts.values())
+        imbalance_ratio = maxi / mini if mini > 0 else float("inf")
+
+        if imbalance_ratio > 3:
+            print(
+                f"\nWarning: Significant class imbalance detected "
+                f"(ratio {imbalance_ratio:.1f}:1)"
+            )
+            print("Consider using data augmentation to balance classes")
+
     except KeyboardInterrupt:
         print("\nOperation cancelled by user")
+        sys.exit(1)
+    except ValueError as e:
+        print(f"\nValidation error: {str(e)}")
         sys.exit(1)
     except Exception as e:
         print(f"\nError: {str(e)}")
