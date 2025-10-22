@@ -89,10 +89,28 @@ def get_class_info(directory_path):
 def process_directory(directory_path, target_count):
     """Process directory to reach target count per class."""
     class_counts, class_paths = get_class_info(directory_path)
+    
+    # Create augmented_directory structure
+    aug_dir = Path("augmented_directory")
+    aug_dir.mkdir(parents=True, exist_ok=True)
+    
+    # Create dataset directory inside augmented_directory
+    dataset_dir = aug_dir / Path(directory_path).name
+    dataset_dir.mkdir(parents=True, exist_ok=True)
 
     print("\nCurrent class distribution:")
     for class_name, count in class_counts.items():
         print(f"{class_name}: {count}")
+        
+        # Create class directory in augmented_directory
+        class_dir = dataset_dir / class_name
+        class_dir.mkdir(parents=True, exist_ok=True)
+        
+        # First, copy all original images
+        for img_path in class_paths[class_name]:
+            new_path = class_dir / img_path.name
+            Image.open(img_path).save(new_path)
+            print(f"Copied original {new_path}")
 
     total_generated = 0
     for class_name, count in class_counts.items():
@@ -104,25 +122,25 @@ def process_directory(directory_path, target_count):
         print(f"\n{class_name}: Generating {needed} additional images")
         generated = 0
 
-        for img_path in class_paths[class_name]:
-            if generated >= needed:
-                break
+        class_dir = dataset_dir / class_name
+        orig_paths = list(class_dir.glob("*.JPG"))  # Use copied images as source
+        while generated < needed:
+            for img_path in orig_paths:
+                if generated >= needed:
+                    break
 
-            try:
-                img = Image.open(img_path)
-                for aug_name in AUGMENTATION_TYPES:
-                    if generated >= needed:
-                        break
-                    output_path = (
-                        img_path.parent /
-                        f"{img_path.stem}_{aug_name}{img_path.suffix}"
-                    )
-                    AUGMENTATION_TYPES[aug_name](img).save(output_path)
-                    print(f"Saved {output_path}")
-                    generated += 1
-                    total_generated += 1
-            except Exception as e:
-                print(f"Error processing {img_path}: {e}")
+                try:
+                    img = Image.open(img_path)
+                    for aug_name in AUGMENTATION_TYPES:
+                        if generated >= needed:
+                            break
+                        output_path = class_dir / f"{img_path.stem}_{aug_name}{img_path.suffix}"
+                        AUGMENTATION_TYPES[aug_name](img).save(output_path)
+                        print(f"Saved {output_path}")
+                        generated += 1
+                        total_generated += 1
+                except Exception as e:
+                    print(f"Error processing {img_path}: {e}")
 
     return total_generated
 

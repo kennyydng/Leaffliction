@@ -1,7 +1,9 @@
 input/
+output/
+augmented_directory/
+__pycache__/
+
 *.zip
 *.tar
 .venv/
-__pycache__/
 .DS_Store
-output/
