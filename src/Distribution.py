@@ -2,12 +2,8 @@
 import os
 import sys
 import numpy as np
-import tensorflow as tf
 import matplotlib.pyplot as plt
 from pathlib import Path
-
-# Configure TensorFlow logging before import
-os.environ["TF_CPP_MIN_LOG_LEVEL"] = "2"
 
 # Matplotlib configuration
 plt.rcParams.update(
@@ -23,7 +19,7 @@ plt.rcParams.update(
 plt.ion()  # Enable interactive mode
 
 # Constants
-IMAGE_SIZE = [128, 128]  # Standard size for all images
+IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".JPG", ".JPEG", ".png", ".PNG"}
 
 
 def validate_directory(directory: str) -> None:
@@ -65,52 +61,45 @@ def validate_directory(directory: str) -> None:
             raise ValueError(f"No valid images found in '{subdir}'")
 
 
-def get_dataset_info(directory: str) -> dict:
+def get_image_counts(directory: str) -> dict:
     """
-    Analyze image distribution in the given directory.
+    Count images per class in the dataset directory.
 
     Args:
-        directory (str): Path to the dataset directory
+        directory: Path to the dataset directory containing class subdirectories
 
     Returns:
-        dict: Category names as keys and image counts as values
+        Dictionary mapping class names to image counts
 
     Raises:
-        ValueError: If directory structure or content is invalid
+        ValueError: If no valid images are found
         RuntimeError: If dataset processing fails
     """
     try:
         # Validate directory structure first
         validate_directory(directory)
 
-        dataset = tf.keras.preprocessing.image_dataset_from_directory(
-            directory,
-            labels="inferred",
-            label_mode="categorical",
-            image_size=IMAGE_SIZE,
-            shuffle=False,
-            batch_size=None,
-            validation_split=None,
-            seed=None,
-            color_mode="rgb",
-        )
-
-        class_names = dataset.class_names
+        directory_path = Path(directory)
         image_counts = {}
 
-        # Count images per class
-        for images, labels in dataset:
-            class_idx = np.argmax(labels.numpy())
-            class_name = class_names[class_idx]
-            image_counts[class_name] = image_counts.get(class_name, 0) + 1
+        # Iterate through subdirectories (classes)
+        for class_dir in sorted(directory_path.iterdir()):
+            if not class_dir.is_dir():
+                continue
+            
+            class_name = class_dir.name
+            # Count images with valid extensions
+            count = sum(1 for f in class_dir.iterdir() 
+                       if f.is_file() and f.suffix in IMAGE_EXTENSIONS)
+            
+            if count > 0:
+                image_counts[class_name] = count
 
         if not image_counts:
             raise ValueError("No valid images found in the dataset")
 
         return image_counts
 
-    except tf.errors.OpError as e:
-        raise RuntimeError(f"TensorFlow error: {str(e)}")
     except Exception as e:
         raise RuntimeError(f"Failed to process dataset: {str(e)}")
 
@@ -174,14 +163,13 @@ def create_charts(data: dict, title: str) -> None:
     # Ajuster la mise en page
     plt.tight_layout()
 
-    # Créer le dossier output s'il n'existe pas
-    dir_path = os.path.dirname(os.path.abspath(__file__))
-    output_dir = os.path.join(dir_path, "output")
-    os.makedirs(output_dir, exist_ok=True)
+    # Créer le dossier output à la racine du projet (parent de src/)
+    output_dir = Path(__file__).parent.parent / "output"
+    output_dir.mkdir(parents=True, exist_ok=True)
 
     # Sauvegarder et afficher la figure complète
     filename = f"distribution_combined_{title.lower()}.png"
-    output_path = os.path.join(output_dir, filename)
+    output_path = output_dir / filename
     plt.savefig(output_path, bbox_inches="tight", dpi=300)
     plt.show(block=True)  # Attendre que l'utilisateur ferme la fenêtre
     plt.close()
@@ -205,8 +193,8 @@ def main() -> None:
         dataset_name = path.name
         print(f"\nAnalyzing dataset '{dataset_name}'...")
 
-        # Get statistics using TensorFlow
-        image_counts = get_dataset_info(directory)
+        # Get statistics
+        image_counts = get_image_counts(directory)
 
         # Generate visualizations
         print("\nGenerating charts...")

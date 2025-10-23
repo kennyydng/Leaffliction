@@ -1,65 +1,56 @@
 #!/usr/bin/env python3
 import sys
 import os
-from PIL import Image
-import random
+from PIL import Image, ImageEnhance, ImageFilter
 from pathlib import Path
 from collections import defaultdict
 
-# Global constants
+# Global constants - Augmentations conformes à l'exemple avec valeurs fixes
 AUGMENTATION_TYPES = {
-    "flip": lambda img: img.transpose(Image.FLIP_LEFT_RIGHT),
-    "rotate": lambda img: img.rotate(random.uniform(-30, 30), expand=True),
-    "skew": lambda img: img.transform(
+    "rotation": lambda img: img.rotate(25, expand=True, fillcolor=(128, 128, 128)),
+    "blur": lambda img: img.filter(ImageFilter.GaussianBlur(radius=2)),
+    "contrast": lambda img: ImageEnhance.Contrast(img).enhance(1.5),
+    "zoom": lambda img: (lambda zoomed: zoomed.resize(img.size, Image.BICUBIC))(
+        img.crop((
+            int(img.size[0] * 0.15),
+            int(img.size[1] * 0.15),
+            int(img.size[0] * 0.85),
+            int(img.size[1] * 0.85)
+        ))
+    ),
+    "brightness": lambda img: ImageEnhance.Brightness(img).enhance(1.3),
+    "distortion": lambda img: img.transform(
         img.size,
         Image.PERSPECTIVE,
-        (1, 0.2, 0, 0, 1, 0, 0, 0.0008),
+        (1, 0.3, 0, 0.3, 1, 0, 0.0008, 0.0008),
         Image.BICUBIC
-    ),
-    "shear": lambda img: img.transform(
-        img.size,
-        Image.AFFINE,
-        (1, random.uniform(-0.3, 0.3), 0, 0, 1, 0),
-        Image.BICUBIC,
-    ),
-    "crop": lambda img: img.crop(
-        (
-            random.randint(0, img.size[0] - int(min(img.size) * 0.8)),
-            random.randint(0, img.size[1] - int(min(img.size) * 0.8)),
-            random.randint(0, img.size[0] - int(min(img.size) * 0.8))
-            + int(min(img.size) * 0.8),
-            random.randint(0, img.size[1] - int(min(img.size) * 0.8))
-            + int(min(img.size) * 0.8),
-        )
-    ),
-    "distort": lambda img: img.resize(
-        (
-            int(img.size[0] * random.uniform(0.8, 1.2)),
-            int(img.size[1] * random.uniform(0.8, 1.2)),
-        ),
-        Image.BICUBIC,
     ),
 }
 
 IMAGE_PATTERNS = ["*.jpg", "*.jpeg", "*.JPG", "*.JPEG"]
+# Output directory at project root (parent of src/)
+OUTPUT_DIR = Path(__file__).parent.parent / "output"
 
 
 def apply_augmentation(img_path, aug_name=None):
     """Apply one or all augmentations to an image."""
     img = Image.open(img_path)
     path = Path(img_path)
+    
+    # Create output directory if it doesn't exist
+    OUTPUT_DIR.mkdir(exist_ok=True)
 
     if aug_name:
         if aug_name not in AUGMENTATION_TYPES:
             raise ValueError(f"Unknown augmentation: {aug_name}")
         augmented = AUGMENTATION_TYPES[aug_name](img)
-        output_path = path.parent / f"{path.stem}_{aug_name}{path.suffix}"
+        output_path = OUTPUT_DIR / f"{path.stem}_{aug_name}{path.suffix}"
         augmented.save(output_path)
         return 1
 
     # Apply all augmentations
     for name, func in AUGMENTATION_TYPES.items():
-        output_path = path.parent / f"{path.stem}_{name}{path.suffix}"
+        output_path = OUTPUT_DIR / f"{path.stem}_{name}{path.suffix}"
         func(img).save(output_path)
         print(f"Saved {output_path}")
     return len(AUGMENTATION_TYPES)
@@ -90,8 +81,8 @@ def process_directory(directory_path, target_count):
     """Process directory to reach target count per class."""
     class_counts, class_paths = get_class_info(directory_path)
     
-    # Create augmented_directory structure
-    aug_dir = Path("augmented_directory")
+    # Create augmented_directory inside output/ at project root
+    aug_dir = OUTPUT_DIR / "augmented_directory"
     aug_dir.mkdir(parents=True, exist_ok=True)
     
     # Create dataset directory inside augmented_directory

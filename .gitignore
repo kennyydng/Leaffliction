@@ -2,8 +2,9 @@ input/
 output/
 augmented_directory/
 __pycache__/
+.venv/
+.venv_py311/
 
 *.zip
 *.tar
-.venv/
 .DS_Store
