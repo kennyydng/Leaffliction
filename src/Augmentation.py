@@ -12,17 +12,17 @@ AUGMENTATION_TYPES = {
     "contrast": lambda img: ImageEnhance.Contrast(img).enhance(1.5),
     "zoom": lambda img: (lambda zoomed: zoomed.resize(img.size, Image.BICUBIC))(
         img.crop((
-            int(img.size[0] * 0.15),
-            int(img.size[1] * 0.15),
-            int(img.size[0] * 0.85),
-            int(img.size[1] * 0.85)
+            int(img.size[0] * 0.10),
+            int(img.size[1] * 0.10),
+            int(img.size[0] * 0.90),
+            int(img.size[1] * 0.90)
         ))
     ),
     "brightness": lambda img: ImageEnhance.Brightness(img).enhance(1.3),
     "distortion": lambda img: img.transform(
         img.size,
         Image.PERSPECTIVE,
-        (1, 0.3, 0, 0.3, 1, 0, 0.0008, 0.0008),
+        (1, 0.15, 0, 0.15, 1, 0, 0.0004, 0.0004),
         Image.BICUBIC
     ),
 }
