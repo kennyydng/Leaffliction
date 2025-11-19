@@ -1,10 +1,44 @@
 # 🌿 Leaffliction
-## Description
 
-Leaffliction est un projet de vision par ordinateur qui permet de :
-- Analyser la distribution des images dans un dataset
-- Équilibrer les classes via des augmentations d'images
-- Détecter et classifier les maladies des feuilles
+## À propos du projet
+
+Leaffliction est un système de vision par ordinateur dédié à l'analyse et à la classification des maladies foliaires, en particulier sur les feuilles de plantes. Ce projet combine des techniques de traitement d'images, d'analyse morphologique et d'augmentation de données pour créer un pipeline complet de préparation de dataset.
+
+### Fonctionnalités principales
+
+#### 1. Analyse de distribution
+- Comptage automatique des images par classe
+- Visualisation de la répartition (camembert et histogramme)
+- Détection de déséquilibres dans le dataset
+
+#### 2. Augmentation d'images
+- 6 types d'augmentation : rotation, blur, contrast, zoom, brightness, distortion
+- Équilibrage automatique des classes
+- Valeurs d'augmentation optimisées pour préserver le réalisme
+
+#### 3. Analyse morphologique
+- Extraction de caractéristiques avec PlantCV
+- 6 transformations : gaussian blur, masque binaire, ROI, analyse d'objet, pseudolandmarks
+- Quantification objective de l'état de santé des feuilles
+
+### Dataset utilisé
+
+Le projet utilise le dataset **Plant Village - Apple Leaf Disease** qui contient 4 classes :
+- **Apple_healthy** : Feuilles saines (51.8% du dataset)
+- **Apple_Black_rot** : Pourriture noire (19.6%)
+- **Apple_scab** : Tavelure (19.9%)
+- **Apple_rust** : Rouille (8.7%)
+
+**Total** : 3,164 images
+
+### Technologies utilisées
+
+- **Python 3.11** : Langage principal
+- **OpenCV** : Traitement d'images
+- **PlantCV** : Analyse morphologique spécialisée pour les plantes
+- **Matplotlib** : Visualisation de données
+- **Pillow (PIL)** : Manipulation d'images
+- **NumPy** : Calculs numériques
 
 ## Structure du projet
 
@@ -55,148 +89,71 @@ pip install -r requirements.txt
 
 **Note :** Si vous avez déjà un environnement `.venv` avec une autre version de Python, supprimez-le et recréez-le avec Python 3.11 pour éviter les problèmes de compatibilité.
 
-## Utilisation des scripts
-
-### Distribution.py
-Analyse la distribution des images dans les classes.
-
-**Emplacement :** `/src/Distribution.py`
+## Démarrage rapide
 
 ```bash
-python src/Distribution.py <chemin_dossier>
-# Exemple : python src/Distribution.py ./input/Apple
-```
+# 1. Cloner le projet
+git clone https://github.com/kennyydng/Leaffliction.git
+cd Leaffliction
 
-**Sortie :**
-- Affiche la distribution des classes dans le terminal
-- Génère des graphiques (camembert et histogramme)
-- Sauvegarde les visualisations dans `output/`
+# 2. Installer Python 3.11 (si nécessaire)
+brew install python@3.11
 
-### Augmentation.py
-Équilibre les classes en générant des images transformées avec 6 types d'augmentation.
+# 3. Créer l'environnement virtuel
+python3.11 -m venv .venv_py311
+source .venv_py311/bin/activate
 
-**Emplacement :** `/src/Augmentation.py`
+# 4. Installer les dépendances
+pip install -r requirements.txt
 
-```bash
-# Pour une image unique (depuis le dossier src/) :
-python src/Augmentation.py <chemin_image>
+# 5. Analyser la distribution du dataset
+python src/Distribution.py ./input/Apple
 
-# Pour un dossier avec nombre cible d'images par classe :
-python src/Augmentation.py <chemin_dossier> --target <nombre>
-
-# Exemples :
-python src/Augmentation.py ./input/Apple/apple_healthy/image.jpg
+# 6. Équilibrer les classes (optionnel)
 python src/Augmentation.py ./input/Apple --target 1640
-```
 
-**Sortie :** Les images augmentées sont sauvegardées dans `output/` (image unique) ou `output/augmented_directory/` (traitement par lot).
-
-#### Les 6 types d'augmentation (valeurs fixes)
-
-1. **Rotation** : Rotation de 25° pour simuler différentes orientations de capture
-2. **Blur** : Flou gaussien (radius=2) pour simuler des photos légèrement floues ou en mouvement
-3. **Contrast** : Augmentation du contraste (×1.5) pour simuler différentes conditions d'éclairage/capture
-4. **Zoom** : Zoom sur le centre de l'image (70% de la surface) pour varier la distance de prise de vue
-5. **Brightness** : Augmentation de la luminosité (×1.3) pour simuler différentes conditions d'illumination
-6. **Distortion** : Transformation en perspective pour simuler différents angles de vue (effet 3D)
-
-Ces augmentations permettent d'enrichir le dataset et d'améliorer la robustesse du modèle de classification.
-
-### Transformation.py
-Analyse morphologique et extraction de caractéristiques des feuilles avec PlantCV.
-
-**Emplacement :** `/src/Transformation.py`
-
-```bash
+# 7. Analyser les caractéristiques morphologiques
 python src/Transformation.py
 ```
 
-**Sortie :** Génère une image combinée dans `output/all_transformations.png` avec 6 transformations.
+## Utilisation
 
-#### Les 6 Transformations et leur intérêt
+Pour des instructions détaillées sur l'utilisation de chaque script, consultez le [README dans src/](src/README.md).
 
-##### 1. **Original Image** (Image Originale)
-**Intérêt :** Image de référence
-- Point de départ pour toutes les analyses
-- Permet de comparer visuellement les résultats des transformations
-- Montre l'état réel de la feuille avec ses taches/maladies
+### Aperçu des scripts
 
-##### 2. **Gaussian Blur** (Flou Gaussien)
-**Intérêt :** Réduction du bruit et prétraitement
-- Lisse les petites imperfections et le bruit de l'image
-- Améliore la segmentation en rendant les transitions de couleur plus douces
-- Réduit les faux positifs lors de la détection de contours
-- Utile avant la création du masque pour éviter les petits trous
+- **Distribution.py** : Analyse et visualise la distribution des classes
+- **Augmentation.py** : Génère des images augmentées pour équilibrer le dataset
+- **Transformation.py** : Effectue une analyse morphologique avec PlantCV
 
-##### 3. **Binary Mask** (Masque Binaire)
-**Intérêt :** Segmentation fond/objet
-- Sépare la feuille du fond (blanc = feuille, noir = fond)
-- Base essentielle pour toutes les analyses suivantes
-- Permet de mesurer uniquement la feuille (pas le fond)
-- Identifie automatiquement la région d'intérêt
-- Important pour calculer la surface réelle de la feuille
+## Résultats
 
-##### 4. **ROI Objects** (Région d'Intérêt)
-**Intérêt :** Isolation de l'objet à analyser
-- Extrait uniquement la feuille en supprimant complètement le fond
-- Facilite la visualisation et l'analyse de la feuille seule
-- Préparation pour le machine learning : images normalisées sans bruit de fond
-- Permet de voir clairement les zones malades sur la feuille
-- Utile pour comparer plusieurs feuilles sans interférence du fond
-
-##### 5. **Object Analysis** (Analyse d'Objet)
-**Intérêt :** Quantification des propriétés morphologiques
-- **Mesures quantitatives** :
-  - **Area (Surface)** : Taille de la feuille - utile pour détecter le flétrissement
-  - **Perimeter (Périmètre)** : Longueur du contour - détecte les bords irréguliers/mangés
-  - **Circularity (Circularité)** : Forme régulière ou déformée - indicateur de santé
-- **Contour vert** : Délimitation exacte de la feuille
-- **Rectangle bleu** : Boîte englobante pour dimensionnement
-- **Ellipse jaune** : Forme idéale pour comparaison
-- Ces métriques peuvent détecter des anomalies (ex: feuille trop petite = maladie)
-
-##### 6. **Pseudolandmarks** (Points Caractéristiques)
-**Intérêt :** Analyse de la forme et des déformations
-- Points équidistants le long du contour pour analyser la forme
-- **Centre (cyan)** : Point de référence pour les mesures
-- **Points rouges/bleus** : Marquent des positions spécifiques
-- Utile pour :
-  - Détecter les déformations de la feuille (comparaison avec feuille saine)
-  - Analyse statistique de la forme (symétrie, régularité)
-  - Machine learning : features pour classifier les maladies
-  - Suivi temporel : évolution de la forme dans le temps
-
-#### Pipeline d'analyse
-```
-Gaussian Blur → Nettoie l'image
-Binary Mask → Isole la feuille
-ROI Objects → Prépare pour l'analyse
-Object Analysis → Mesure les symptômes (taille, forme, déformation)
-Pseudolandmarks → Analyse fine de la géométrie
-```
-
-Ces transformations permettent de **quantifier objectivement** l'état de santé d'une feuille plutôt que de se fier à l'œil humain, ce qui est essentiel pour un système de détection automatique de maladies !
-
+Tous les résultats sont sauvegardés dans le dossier `output/` :
+- Graphiques de distribution
+- Images augmentées
+- Visualisations des transformations morphologiques
 
 ## Workflow recommandé
 
-1. **Analyser la distribution** :
-   ```bash
-   python src/Distribution.py ./input/Apple
-   ```
+1. **Analyser** : Utilisez `Distribution.py` pour comprendre votre dataset
+2. **Équilibrer** : Si nécessaire, utilisez `Augmentation.py` pour équilibrer les classes
+3. **Analyser** : Utilisez `Transformation.py` pour extraire des caractéristiques
 
-2. **Équilibrer les classes** :
-   ```bash
-   python src/Augmentation.py ./input/Apple --target 1640
-   ```
+## Contributions
 
-3. **Analyser les caractéristiques** :
-   ```bash
-   python src/Transformation.py
-   ```
+Les contributions sont les bienvenues ! N'hésitez pas à ouvrir une issue ou une pull request.
 
-4. **Nettoyer si nécessaire** :
-   ```bash
-   python clean_augmented.py ./output/augmented_directory/Apple
-   ```
+## Licence
+
+Ce projet est sous licence MIT.
+
+## Auteur
+
+Kenny Duong - [@kennyydng](https://github.com/kennyydng)
+
+## Remerciements
+
+- Dataset : Plant Village Apple Leaf Disease
+- PlantCV pour les outils d'analyse morphologique
+- OpenCV pour le traitement d'images
 
