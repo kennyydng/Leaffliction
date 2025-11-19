@@ -1,30 +1,36 @@
 #!/usr/bin/env python3
 import sys
 import os
-from PIL import Image, ImageEnhance, ImageFilter
+from PIL import Image, ImageEnhance, ImageFilter, ImageDraw, ImageFont
 from pathlib import Path
 from collections import defaultdict
 
 # Global constants - Augmentations conformes à l'exemple avec valeurs fixes
 AUGMENTATION_TYPES = {
-    "rotation": lambda img: img.rotate(25, expand=True, fillcolor=(128, 128, 128)),
-    "blur": lambda img: img.filter(ImageFilter.GaussianBlur(radius=2)),
-    "contrast": lambda img: ImageEnhance.Contrast(img).enhance(1.5),
-    "zoom": lambda img: (lambda zoomed: zoomed.resize(img.size, Image.BICUBIC))(
-        img.crop((
-            int(img.size[0] * 0.10),
-            int(img.size[1] * 0.10),
-            int(img.size[0] * 0.90),
-            int(img.size[1] * 0.90)
-        ))
-    ),
+    "rotation": lambda img:
+        img.rotate(25, expand=True, fillcolor=(128, 128, 128)),
+    "blur": lambda img:
+        img.filter(ImageFilter.GaussianBlur(radius=1)),
+    "contrast": lambda img:
+        ImageEnhance.Contrast(img).enhance(1.5),
+    "zoom": lambda img:
+        (lambda zoomed: zoomed.resize(img.size, Image.BICUBIC))(
+            img.crop(
+                (
+                    int(img.size[0] * 0.10),
+                    int(img.size[1] * 0.10),
+                    int(img.size[0] * 0.90),
+                    int(img.size[1] * 0.90),
+                )
+            )
+        ),
     "brightness": lambda img: ImageEnhance.Brightness(img).enhance(1.3),
     "distortion": lambda img: img.transform(
         img.size,
         Image.PERSPECTIVE,
         (1, 0.15, 0, 0.15, 1, 0, 0.0004, 0.0004),
-        Image.BICUBIC
-    ),
+        Image.BICUBIC,
+        ),
 }
 
 IMAGE_PATTERNS = ["*.jpg", "*.jpeg", "*.JPG", "*.JPEG"]
@@ -36,7 +42,7 @@ def apply_augmentation(img_path, aug_name=None):
     """Apply one or all augmentations to an image."""
     img = Image.open(img_path)
     path = Path(img_path)
-    
+
     # Create output directory if it doesn't exist
     OUTPUT_DIR.mkdir(exist_ok=True)
 
@@ -48,11 +54,119 @@ def apply_augmentation(img_path, aug_name=None):
         augmented.save(output_path)
         return 1
 
-    # Apply all augmentations
+    # Apply all augmentations and collect results (keep names)
+    augmented_images = []
+
+    # Include original first
+    try:
+        augmented_images.append(("original", img.copy()))
+    except Exception:
+        augmented_images.append(("original", img))
+
     for name, func in AUGMENTATION_TYPES.items():
+        try:
+            aug_img = func(img.copy())
+        except Exception:
+            # Fallback: apply on original if copy fails
+            aug_img = func(img)
+
         output_path = OUTPUT_DIR / f"{path.stem}_{name}{path.suffix}"
-        func(img).save(output_path)
-        print(f"Saved {output_path}")
+        try:
+            aug_img.save(output_path)
+            print(f"Saved {output_path}")
+        except Exception as e:
+            print(f"Warning: could not save {output_path}: {e}")
+
+        augmented_images.append((name, aug_img))
+
+    # If input was a single file:
+    # build a horizontal montage of original + augmentations
+    # with a title above each image, then save and display it.
+    try:
+        if path.is_file() and augmented_images:
+            # Prepare font and title area
+            try:
+                font = ImageFont.load_default()
+            except Exception:
+                font = None
+
+            title_height = 28
+            # Normalize image heights (area for image only)
+            target_img_h = min(img.size[1], 512)
+
+            tiles = []  # list of (name, tile_image)
+            for name, im in augmented_images:
+                # Resize image keeping aspect ratio to target_img_h
+                w, h = im.size
+                if h != target_img_h:
+                    new_w = max(1, int(w * (target_img_h / h)))
+                    im_resized = im.resize(
+                        (new_w, target_img_h), Image.BICUBIC)
+                else:
+                    im_resized = im
+
+                tile_w = im_resized.size[0]
+                tile_h = title_height + target_img_h
+                tile = Image.new('RGB', (tile_w, tile_h), (200, 200, 200))
+                # Paste the image below the title area
+                tile.paste(im_resized, (0, title_height))
+                draw = ImageDraw.Draw(tile)
+                text = name
+
+                def _measure_text(draw_obj, txt, fnt):
+                    # Try multiple measurement methods for compatibility
+                    try:
+                        if hasattr(draw_obj, 'textsize'):
+                            return draw_obj.textsize(txt, font=fnt)
+                    except Exception:
+                        pass
+                    try:
+                        if fnt is not None and hasattr(fnt, 'getsize'):
+                            return fnt.getsize(txt)
+                    except Exception:
+                        pass
+                    try:
+                        if hasattr(draw_obj, 'textbbox'):
+                            bbox = draw_obj.textbbox((0, 0), txt, font=fnt)
+                            return (bbox[2] - bbox[0], bbox[3] - bbox[1])
+                    except Exception:
+                        pass
+                    # Fallback heuristic
+                    return (max(10, len(txt) * 6), 11)
+
+                text_w, text_h = _measure_text(draw, text, font)
+
+                text_x = max(0, (tile_w - text_w) // 2)
+                text_y = max(0, (title_height - text_h) // 2)
+                try:
+                    draw.text((text_x, text_y),
+                              text, fill=(0, 0, 0), font=font)
+                except Exception:
+                    # Last resort: draw without font
+                    draw.text((text_x, text_y), text, fill=(0, 0, 0))
+
+                tiles.append(tile)
+
+            total_width = sum(t.size[0] for t in tiles)
+            montage_h = title_height + target_img_h
+            montage = Image.new('RGB',
+                                (total_width, montage_h), (128, 128, 128))
+            x_offset = 0
+            for t in tiles:
+                montage.paste(t, (x_offset, 0))
+                x_offset += t.size[0]
+
+            combined_path = OUTPUT_DIR / f"{path.stem}_combined{path.suffix}"
+            montage.save(combined_path)
+            print(f"Saved combined montage: {combined_path}")
+            try:
+                montage.show()
+            except Exception:
+                # If display fails (headless), still continue
+                pass
+    except Exception as e:
+        print(f"Warning: failed to build/display montage: {e}")
+
     return len(AUGMENTATION_TYPES)
 
 
@@ -80,11 +194,11 @@ def get_class_info(directory_path):
 def process_directory(directory_path, target_count):
     """Process directory to reach target count per class."""
     class_counts, class_paths = get_class_info(directory_path)
-    
+
     # Create augmented_directory inside output/ at project root
     aug_dir = OUTPUT_DIR / "augmented_directory"
     aug_dir.mkdir(parents=True, exist_ok=True)
-    
+
     # Create dataset directory inside augmented_directory
     dataset_dir = aug_dir / Path(directory_path).name
     dataset_dir.mkdir(parents=True, exist_ok=True)
@@ -92,11 +206,11 @@ def process_directory(directory_path, target_count):
     print("\nCurrent class distribution:")
     for class_name, count in class_counts.items():
         print(f"{class_name}: {count}")
-        
+
         # Create class directory in augmented_directory
         class_dir = dataset_dir / class_name
         class_dir.mkdir(parents=True, exist_ok=True)
-        
+
         # First, copy all original images
         for img_path in class_paths[class_name]:
             new_path = class_dir / img_path.name
@@ -114,7 +228,7 @@ def process_directory(directory_path, target_count):
         generated = 0
 
         class_dir = dataset_dir / class_name
-        orig_paths = list(class_dir.glob("*.JPG"))  # Use copied images as source
+        orig_paths = list(class_dir.glob("*.JPG"))
         while generated < needed:
             for img_path in orig_paths:
                 if generated >= needed:
@@ -125,7 +239,8 @@ def process_directory(directory_path, target_count):
                     for aug_name in AUGMENTATION_TYPES:
                         if generated >= needed:
                             break
-                        output_path = class_dir / f"{img_path.stem}_{aug_name}{img_path.suffix}"
+                        file = f"{img_path.stem}_{aug_name}{img_path.suffix}"
+                        output_path = (class_dir/file)
                         AUGMENTATION_TYPES[aug_name](img).save(output_path)
                         print(f"Saved {output_path}")
                         generated += 1
@@ -185,7 +300,7 @@ def main():
         else:
             # Get target value from command line arguments
             try:
-                target_idx = sys.argv.index('--target') + 1
+                target_idx = sys.argv.index("--target") + 1
                 target_count = int(sys.argv[target_idx])
             except (ValueError, IndexError):
                 raise ValueError(

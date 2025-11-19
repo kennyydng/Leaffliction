@@ -66,7 +66,8 @@ def get_image_counts(directory: str) -> dict:
     Count images per class in the dataset directory.
 
     Args:
-        directory: Path to the dataset directory containing class subdirectories
+        directory: Path to the dataset directory
+        containing class subdirectories
 
     Returns:
         Dictionary mapping class names to image counts
@@ -86,12 +87,15 @@ def get_image_counts(directory: str) -> dict:
         for class_dir in sorted(directory_path.iterdir()):
             if not class_dir.is_dir():
                 continue
-            
+
             class_name = class_dir.name
             # Count images with valid extensions
-            count = sum(1 for f in class_dir.iterdir() 
-                       if f.is_file() and f.suffix in IMAGE_EXTENSIONS)
-            
+            count = sum(
+                1
+                for f in class_dir.iterdir()
+                if f.is_file() and f.suffix in IMAGE_EXTENSIONS
+            )
+
             if count > 0:
                 image_counts[class_name] = count
 
